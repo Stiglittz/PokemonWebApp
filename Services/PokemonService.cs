@@ -434,11 +434,16 @@ namespace PokemonWebApp.Services
                     var filteredPokemon = await GetPokemonByNameAsync(nameFilter);
                     if (filteredPokemon != null)
                     {
-
-                        {
-                            viewModel.TotalCount = 0;
-                        }
-
+                        viewModel.Pokemons = new List<Models.Pokemon.Pokemon> { filteredPokemon };
+                        viewModel.TotalCount = 1;
+                        viewModel.HasNext = false;
+                        viewModel.HasPrevious = false;
+                        return viewModel;
+                    }
+                    else
+                    {
+                        viewModel.Pokemons = new List<Models.Pokemon.Pokemon>();
+                        viewModel.TotalCount = 0;
                         viewModel.HasNext = false;
                         viewModel.HasPrevious = false;
                         return viewModel;
