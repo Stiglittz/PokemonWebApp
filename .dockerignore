@@ -1,0 +1,43 @@
+# Git
+.git
+.gitignore
+.gitattributes
+
+# Documentation
+README.md
+TECHNICAL-DOCS.md
+*.md
+
+# Build artifacts
+bin/
+obj/
+out/
+
+# IDE files
+.vs/
+.vscode/
+*.user
+*.suo
+*.userprefs
+
+# Logs
+Logs/
+*.log
+
+# Dependencies
+node_modules/
+packages/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.temp
+
+# Scripts
+setup-git.bat
+
+# Environment files (will be set via Render)
+appsettings.Development.json

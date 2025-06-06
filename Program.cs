@@ -27,6 +27,10 @@ var builder = WebApplication.CreateBuilder(args);
 // Configurar Serilog como el proveedor de logging
 builder.Host.UseSerilog();
 
+// Configurar para escuchar en el puerto de Render
+var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
+builder.WebHost.UseUrls($"http://*:{port}");
+
 // Add services to the container.
 builder.Services.AddControllersWithViews();
 
@@ -40,16 +44,30 @@ builder.Services.AddHttpClient<IPokemonService, PokemonService>(client =>
 // Registrar servicios de la aplicación
 builder.Services.AddScoped<IExcelService, ExcelService>();
 
-// Configurar y registrar servicio de Email
-builder.Services.Configure<EmailSettings>(
-    builder.Configuration.GetSection("EmailSettings"));
+// Configurar y registrar servicio de Email con variables de entorno
+var emailSettings = new EmailSettings();
+if (builder.Environment.IsProduction())
+{
+    // En producción, usar variables de entorno
+    emailSettings.SmtpServer = Environment.GetEnvironmentVariable("SMTP_SERVER") ?? "smtp.gmail.com";
+    emailSettings.SmtpPort = int.Parse(Environment.GetEnvironmentVariable("SMTP_PORT") ?? "587");
+    emailSettings.SmtpUsername = Environment.GetEnvironmentVariable("SMTP_USERNAME") ?? "";
+    emailSettings.SmtpPassword = Environment.GetEnvironmentVariable("SMTP_PASSWORD") ?? "";
+    emailSettings.EnableSsl = bool.Parse(Environment.GetEnvironmentVariable("SMTP_ENABLE_SSL") ?? "true");
+    emailSettings.FromEmail = Environment.GetEnvironmentVariable("SMTP_FROM_EMAIL") ?? "";
+    emailSettings.FromName = Environment.GetEnvironmentVariable("SMTP_FROM_NAME") ?? "PokemonWebApp";
+}
+else
+{
+    // En desarrollo, usar configuración del archivo
+    builder.Configuration.GetSection("EmailSettings").Bind(emailSettings);
+}
+
+builder.Services.AddSingleton(emailSettings);
 builder.Services.AddScoped<IEmailService, EmailService>();
 
 // Configurar cache en memoria
 builder.Services.AddMemoryCache();
-
-// NO registrar el middleware como servicio - se usa directamente
-// builder.Services.AddScoped<GlobalExceptionHandlingMiddleware>(); ← REMOVER ESTA LÍNEA
 
 var app = builder.Build();
 
@@ -102,9 +120,13 @@ app.MapControllerRoute(
     name: "default",
     pattern: "{controller=Pokemon}/{action=Index}/{id?}");
 
-// Log de inicio de aplicación
-Log.Information("🚀 PokemonWebApp iniciada en {Environment} en {MachineName}", 
-    app.Environment.EnvironmentName, Environment.MachineName);
+// Log de inicio de aplicación con información de Render
+var environment = app.Environment.EnvironmentName;
+var renderService = Environment.GetEnvironmentVariable("RENDER_SERVICE_NAME") ?? "Local";
+var renderRegion = Environment.GetEnvironmentVariable("RENDER_REGION") ?? "Unknown";
+
+Log.Information("🚀 PokemonWebApp iniciada en {Environment} en servicio {RenderService} región {RenderRegion}", 
+    environment, renderService, renderRegion);
 
 try
 {
