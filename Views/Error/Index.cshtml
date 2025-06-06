@@ -1,0 +1,248 @@
+@model PokemonWebApp.Models.ViewModels.ErrorViewModel
+@{
+    ViewData["Title"] = Model.Title;
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<div class="container-fluid min-vh-100 d-flex align-items-center justify-content-center">
+    <div class="row justify-content-center w-100">
+        <div class="col-md-8 col-lg-6">
+            <!-- Card principal del error -->
+            <div class="card shadow-lg border-0 @Model.GetStatusBackgroundClass()">
+                <div class="card-body p-5 text-center">
+                    <!-- Icono y código de estado -->
+                    <div class="mb-4">
+                        <div class="display-1 @Model.GetStatusColorClass()" style="font-size: 5rem;">
+                            @Model.GetStatusIcon()
+                        </div>
+                        <h2 class="fw-bold @Model.GetStatusColorClass() mb-0">
+                            Error @Model.StatusCode
+                        </h2>
+                    </div>
+
+                    <!-- Título y mensaje -->
+                    <div class="mb-4">
+                        <h1 class="h3 fw-bold text-dark mb-3">@Model.Title</h1>
+                        <p class="lead text-muted mb-3">@Model.Message</p>
+                        <p class="text-muted">@Model.Description</p>
+                    </div>
+
+                    <!-- Acciones sugeridas -->
+                    @if (Model.SuggestedActions.Any())
+                    {
+                        <div class="mb-4">
+                            <h5 class="fw-semibold text-dark mb-3">💡 Qué puedes hacer:</h5>
+                            <ul class="list-unstyled text-muted">
+                                @foreach (var action in Model.SuggestedActions)
+                                {
+                                    <li class="mb-2">
+                                        <i class="fas fa-check-circle text-success me-2"></i>
+                                        @action
+                                    </li>
+                                }
+                            </ul>
+                        </div>
+                    }
+
+                    <!-- Botones de acción -->
+                    <div class="d-flex flex-wrap gap-3 justify-content-center">
+                        @if (Model.ShowRetryButton)
+                        {
+                            <button onclick="location.reload()" class="btn btn-primary btn-lg px-4">
+                                <i class="fas fa-redo me-2"></i>
+                                Reintentar
+                            </button>
+                        }
+
+                        @if (Model.ShowBackButton)
+                        {
+                            <button onclick="history.back()" class="btn btn-outline-secondary btn-lg px-4">
+                                <i class="fas fa-arrow-left me-2"></i>
+                                Volver
+                            </button>
+                        }
+
+                        @if (Model.ShowHomeButton)
+                        {
+                            <a href="@Url.Action("Index", "Pokemon")" class="btn btn-success btn-lg px-4">
+                                <i class="fas fa-home me-2"></i>
+                                Ir al inicio
+                            </a>
+                        }
+                    </div>
+
+                    <!-- Información técnica (solo en desarrollo) -->
+                    @if (!string.IsNullOrEmpty(Model.TechnicalDetails) && ViewContext.HttpContext.RequestServices.GetService<IWebHostEnvironment>()?.IsDevelopment() == true)
+                    {
+                        <div class="mt-4 pt-4 border-top">
+                            <details class="text-start">
+                                <summary class="btn btn-outline-secondary btn-sm">
+                                    <i class="fas fa-code me-2"></i>
+                                    Detalles técnicos
+                                </summary>
+                                <div class="mt-3 p-3 bg-dark text-light rounded">
+                                    <small>
+                                        <strong>Correlation ID:</strong> @Model.CorrelationId<br>
+                                        <strong>Timestamp:</strong> @Model.Timestamp.ToString("yyyy-MM-dd HH:mm:ss")<br>
+                                        <strong>Details:</strong><br>
+                                        <pre class="text-wrap">@Model.TechnicalDetails</pre>
+                                    </small>
+                                </div>
+                            </details>
+                        </div>
+                    }
+                </div>
+            </div>
+
+            <!-- Información adicional -->
+            <div class="text-center mt-4">
+                <small class="text-muted">
+                    <i class="fas fa-clock me-1"></i>
+                    @Model.Timestamp.ToString("dd/MM/yyyy HH:mm:ss")
+                    @if (!string.IsNullOrEmpty(Model.CorrelationId))
+                    {
+                        <span class="ms-3">
+                            <i class="fas fa-fingerprint me-1"></i>
+                            ID: @Model.CorrelationId.Substring(0, 8)...
+                        </span>
+                    }
+                </small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Estilos adicionales -->
+<style>
+    .btn-lg {
+        border-radius: 50px;
+        padding: 12px 30px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        transition: all 0.3s ease;
+    }
+
+    .btn-lg:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+    }
+
+    .card {
+        border-radius: 20px;
+        backdrop-filter: blur(10px);
+    }
+
+    .bg-info-subtle {
+        background: linear-gradient(135deg, rgba(13, 202, 240, 0.1), rgba(13, 202, 240, 0.05));
+    }
+
+    .bg-danger-subtle {
+        background: linear-gradient(135deg, rgba(220, 53, 69, 0.1), rgba(220, 53, 69, 0.05));
+    }
+
+    .bg-warning-subtle {
+        background: linear-gradient(135deg, rgba(255, 193, 7, 0.1), rgba(255, 193, 7, 0.05));
+    }
+
+    .bg-secondary-subtle {
+        background: linear-gradient(135deg, rgba(108, 117, 125, 0.1), rgba(108, 117, 125, 0.05));
+    }
+
+    .list-unstyled li {
+        background: rgba(255, 255, 255, 0.7);
+        padding: 8px 15px;
+        margin: 8px 0;
+        border-radius: 8px;
+        border-left: 4px solid #28a745;
+    }
+
+    details summary {
+        cursor: pointer;
+        user-select: none;
+    }
+
+    details[open] summary {
+        margin-bottom: 10px;
+    }
+
+    pre {
+        font-size: 0.8rem;
+        line-height: 1.4;
+        max-height: 200px;
+        overflow-y: auto;
+    }
+
+    /* Media queries para responsive design */
+    @@media (max-width: 768px) {
+        .btn-lg {
+            width: 100%;
+            margin-bottom: 10px;
+        }
+        
+        .d-flex.gap-3 {
+            flex-direction: column;
+        }
+        
+        .display-1 {
+            font-size: 3rem !important;
+        }
+    }
+</style>
+
+<!-- Script para reportar errores del cliente -->
+<script>
+    // Capturar errores de JavaScript y reportarlos al servidor
+    window.addEventListener('error', function(event) {
+        const errorReport = {
+            url: window.location.href,
+            errorMessage: event.message,
+            userAgent: navigator.userAgent,
+            timestamp: new Date().toISOString(),
+            stackTrace: event.error ? event.error.stack : null
+        };
+
+        fetch('/Error/ReportClientError', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(errorReport)
+        }).catch(console.error);
+    });
+
+    // Función para mostrar feedback visual al usuario
+    function showFeedback(message, type = 'info') {
+        const alert = document.createElement('div');
+        alert.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
+        alert.style.cssText = 'top: 20px; right: 20px; z-index: 9999; max-width: 300px;';
+        alert.innerHTML = `
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+        document.body.appendChild(alert);
+        
+        setTimeout(() => {
+            if (alert.parentNode) {
+                alert.parentNode.removeChild(alert);
+            }
+        }, 5000);
+    }
+
+    // Función mejorada de reintento con feedback
+    function retryWithFeedback() {
+        showFeedback('🔄 Reintentando...', 'info');
+        setTimeout(() => {
+            location.reload();
+        }, 1000);
+    }
+
+    // Reemplazar el onclick del botón reintentar si existe
+    document.addEventListener('DOMContentLoaded', function() {
+        const retryButton = document.querySelector('button[onclick="location.reload()"]');
+        if (retryButton) {
+            retryButton.removeAttribute('onclick');
+            retryButton.addEventListener('click', retryWithFeedback);
+        }
+    });
+</script>
