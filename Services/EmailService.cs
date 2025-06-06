@@ -15,10 +15,17 @@ namespace PokemonWebApp.Services
         private readonly EmailSettings _emailSettings;
         private readonly ILogger<EmailService> _logger;
 
-        public EmailService(IOptions<EmailSettings> emailSettings, ILogger<EmailService> logger)
+        // 🚀 CONSTRUCTOR ACTUALIZADO PARA RENDER - Sin IOptions
+        public EmailService(EmailSettings emailSettings, ILogger<EmailService> logger)
         {
-            _emailSettings = emailSettings.Value;
+            _emailSettings = emailSettings;
             _logger = logger;
+            
+            // 🔍 LOG PARA DEBUGGING EN RENDER
+            _logger.LogInformation("📧 EmailService inicializado - SMTP: {Server}, Usuario: {Username}, Puerto: {Port}", 
+                _emailSettings?.SmtpServer ?? "NULL", 
+                _emailSettings?.SmtpUsername ?? "NULL", 
+                _emailSettings?.SmtpPort ?? 0);
         }
 
         /// <summary>
@@ -30,18 +37,31 @@ namespace PokemonWebApp.Services
             {
                 if (!IsConfigurationValid())
                 {
-                    _logger.LogError("Configuración SMTP inválida");
+                    _logger.LogError("❌ Configuración SMTP inválida - No se puede enviar email");
                     return false;
                 }
+
+                _logger.LogInformation("📤 Intentando enviar email individual para Pokémon {PokemonName} a {Email}", pokemon.Name, recipientEmail);
 
                 var subject = $"Información del Pokémon: {pokemon.Name}";
                 var htmlBody = GeneratePokemonEmailTemplate(pokemon, recipientName);
 
-                return await SendEmailAsync(recipientEmail, subject, htmlBody);
+                var result = await SendEmailAsync(recipientEmail, subject, htmlBody);
+                
+                if (result)
+                {
+                    _logger.LogInformation("✅ Email individual enviado exitosamente para {PokemonName}", pokemon.Name);
+                }
+                else
+                {
+                    _logger.LogError("❌ Falló el envío de email individual para {PokemonName}", pokemon.Name);
+                }
+
+                return result;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error enviando email individual para Pokémon {PokemonName}", pokemon.Name);
+                _logger.LogError(ex, "💀 Error enviando email individual para Pokémon {PokemonName}", pokemon.Name);
                 return false;
             }
         }
@@ -55,13 +75,15 @@ namespace PokemonWebApp.Services
 
             if (!IsConfigurationValid())
             {
-                _logger.LogError("Configuración SMTP inválida para envío masivo");
+                _logger.LogError("❌ Configuración SMTP inválida para envío masivo");
                 return 0;
             }
 
             // Enviar un email con todos los Pokémon seleccionados
             try
             {
+                _logger.LogInformation("📤 Intentando enviar email masivo con {Count} Pokémon a {Email}", pokemons.Count, recipientEmail);
+
                 var subject = $"Información de {pokemons.Count} Pokémon seleccionados";
                 var htmlBody = GenerateMultiplePokemonEmailTemplate(pokemons, recipientName);
 
@@ -69,12 +91,16 @@ namespace PokemonWebApp.Services
                 if (success)
                 {
                     successCount = 1;
-                    _logger.LogInformation("Email masivo enviado exitosamente con {Count} Pokémon", pokemons.Count);
+                    _logger.LogInformation("✅ Email masivo enviado exitosamente con {Count} Pokémon", pokemons.Count);
+                }
+                else
+                {
+                    _logger.LogError("❌ Falló el envío de email masivo con {Count} Pokémon", pokemons.Count);
                 }
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error enviando email masivo con {Count} Pokémon", pokemons.Count);
+                _logger.LogError(ex, "💀 Error enviando email masivo con {Count} Pokémon", pokemons.Count);
             }
 
             return successCount;
@@ -85,11 +111,29 @@ namespace PokemonWebApp.Services
         /// </summary>
         public bool IsConfigurationValid()
         {
-            return !string.IsNullOrEmpty(_emailSettings.SmtpServer) &&
-                   _emailSettings.SmtpPort > 0 &&
-                   !string.IsNullOrEmpty(_emailSettings.SmtpUsername) &&
-                   !string.IsNullOrEmpty(_emailSettings.SmtpPassword) &&
-                   !string.IsNullOrEmpty(_emailSettings.FromEmail);
+            var isValid = _emailSettings != null &&
+                         !string.IsNullOrEmpty(_emailSettings.SmtpServer) &&
+                         _emailSettings.SmtpPort > 0 &&
+                         !string.IsNullOrEmpty(_emailSettings.SmtpUsername) &&
+                         !string.IsNullOrEmpty(_emailSettings.SmtpPassword) &&
+                         !string.IsNullOrEmpty(_emailSettings.FromEmail);
+
+            // 🔍 LOG DETALLADO PARA DEBUGGING
+            if (!isValid)
+            {
+                _logger.LogWarning("❌ Configuración SMTP inválida:");
+                _logger.LogWarning("   - SmtpServer: {Server}", _emailSettings?.SmtpServer ?? "NULL");
+                _logger.LogWarning("   - SmtpPort: {Port}", _emailSettings?.SmtpPort ?? 0);
+                _logger.LogWarning("   - SmtpUsername: {Username}", string.IsNullOrEmpty(_emailSettings?.SmtpUsername) ? "VACÍO" : "CONFIGURADO");
+                _logger.LogWarning("   - SmtpPassword: {Password}", string.IsNullOrEmpty(_emailSettings?.SmtpPassword) ? "VACÍO" : "CONFIGURADO");
+                _logger.LogWarning("   - FromEmail: {FromEmail}", _emailSettings?.FromEmail ?? "NULL");
+            }
+            else
+            {
+                _logger.LogInformation("✅ Configuración SMTP válida para {Server}:{Port}", _emailSettings.SmtpServer, _emailSettings.SmtpPort);
+            }
+
+            return isValid;
         }
 
         /// <summary>
@@ -99,6 +143,9 @@ namespace PokemonWebApp.Services
         {
             try
             {
+                _logger.LogInformation("📡 Conectando a SMTP {Server}:{Port} con usuario {Username}", 
+                    _emailSettings.SmtpServer, _emailSettings.SmtpPort, _emailSettings.SmtpUsername);
+
                 using var smtpClient = new SmtpClient(_emailSettings.SmtpServer, _emailSettings.SmtpPort);
                 smtpClient.Credentials = new NetworkCredential(_emailSettings.SmtpUsername, _emailSettings.SmtpPassword);
                 smtpClient.EnableSsl = _emailSettings.EnableSsl;
@@ -111,12 +158,17 @@ namespace PokemonWebApp.Services
                 mailMessage.IsBodyHtml = true;
 
                 await smtpClient.SendMailAsync(mailMessage);
-                _logger.LogInformation("Email enviado exitosamente a {Email}", toEmail);
+                _logger.LogInformation("✅ Email enviado exitosamente a {Email}", toEmail);
                 return true;
+            }
+            catch (SmtpException smtpEx)
+            {
+                _logger.LogError(smtpEx, "📧 Error SMTP enviando email a {Email}: {Message}", toEmail, smtpEx.Message);
+                return false;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error enviando email a {Email}", toEmail);
+                _logger.LogError(ex, "💀 Error general enviando email a {Email}", toEmail);
                 return false;
             }
         }
