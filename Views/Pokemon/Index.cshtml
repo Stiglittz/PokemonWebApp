@@ -12,7 +12,7 @@
                 <h1 class="display-4 text-gradient">
                     <i class="fas fa-paw me-2"></i>Pokédex Avanzado
                 </h1>
-                <p class="lead text-muted">Explora el mundo de los Pokémon con filtros avanzados</p>
+                <p class="lead text-muted">Explora el mundo de los Pokémon por tipo o información de especies</p>
                 @if (Model.HasFilters)
                 {
                     <div class="alert alert-info d-inline-block">
@@ -26,12 +26,6 @@
                         {
                             <span class="badge bg-success me-1">Tipo: @Model.TypeFilter</span>
                         }
-                        @if (Model.MinHeight.HasValue || Model.MaxHeight.HasValue)
-                        {
-                            <span class="badge bg-warning me-1">
-                                Altura: @(Model.MinHeight?.ToString() ?? "0") - @(Model.MaxHeight?.ToString() ?? "∞")
-                            </span>
-                        }
                     </div>
                 }
             </div>
@@ -43,7 +37,7 @@
         <div class="card-header bg-gradient-primary text-white">
             <h5 class="mb-0 d-flex align-items-center">
                 <i class="fas fa-search me-2"></i>
-                Filtros de Búsqueda Avanzados
+                Filtros de Búsqueda
                 <button class="btn btn-sm btn-outline-light ms-auto" type="button" data-bs-toggle="collapse" data-bs-target="#filtersCollapse">
                     <i class="fas fa-chevron-down"></i>
                 </button>
@@ -89,51 +83,14 @@
                             </select>
                         </div>
 
-                        <!-- Filtros de altura -->
-                        <div class="col-md-6 col-lg-2">
-                            <label for="minHeight" class="form-label">
-                                <i class="fas fa-arrows-alt-v text-warning"></i> Altura mín:
-                            </label>
-                            <div class="input-group">
-                                <input type="number" 
-                                       class="form-control" 
-                                       id="minHeight" 
-                                       name="minHeight" 
-                                       value="@Model.MinHeight" 
-                                       placeholder="0"
-                                       min="0"
-                                       max="500">
-                                <span class="input-group-text">dm</span>
-                            </div>
-                            <small class="text-muted">decímetros</small>
-                        </div>
-
-                        <div class="col-md-6 col-lg-2">
-                            <label for="maxHeight" class="form-label">
-                                <i class="fas fa-arrows-alt-v text-warning"></i> Altura máx:
-                            </label>
-                            <div class="input-group">
-                                <input type="number" 
-                                       class="form-control" 
-                                       id="maxHeight" 
-                                       name="maxHeight" 
-                                       value="@Model.MaxHeight" 
-                                       placeholder="500"
-                                       min="0"
-                                       max="500">
-                                <span class="input-group-text">dm</span>
-                            </div>
-                            <small class="text-muted">decímetros</small>
-                        </div>
-
                         <!-- Botones de acción -->
-                        <div class="col-lg-2 d-flex align-items-end">
+                        <div class="col-lg-4 d-flex align-items-end">
                             <div class="btn-group w-100" role="group">
                                 <button type="submit" class="btn btn-primary">
                                     <i class="fas fa-search"></i> Buscar
                                 </button>
                                 <a href="@Url.Action("Index", "Pokemon")" class="btn btn-outline-secondary">
-                                    <i class="fas fa-times"></i>
+                                    <i class="fas fa-eraser me-1"></i>Limpiar filtros
                                 </a>
                             </div>
                         </div>
@@ -314,9 +271,7 @@
                                 <a class="page-link" href="@Url.Action("Index", "Pokemon", new { 
                                     page = 1, 
                                     nameFilter = Model.NameFilter, 
-                                    typeFilter = Model.TypeFilter,
-                                    minHeight = Model.MinHeight,
-                                    maxHeight = Model.MaxHeight
+                                    typeFilter = Model.TypeFilter
                                 })">
                                     <i class="fas fa-angle-double-left"></i>
                                 </a>
@@ -329,9 +284,7 @@
                                href="@Url.Action("Index", "Pokemon", new { 
                                    page = Model.CurrentPage - 1, 
                                    nameFilter = Model.NameFilter, 
-                                   typeFilter = Model.TypeFilter,
-                                   minHeight = Model.MinHeight,
-                                   maxHeight = Model.MaxHeight
+                                   typeFilter = Model.TypeFilter
                                })">
                                 <i class="fas fa-chevron-left"></i>
                             </a>
@@ -345,9 +298,7 @@
                                    href="@Url.Action("Index", "Pokemon", new { 
                                        page = i, 
                                        nameFilter = Model.NameFilter, 
-                                       typeFilter = Model.TypeFilter,
-                                       minHeight = Model.MinHeight,
-                                       maxHeight = Model.MaxHeight
+                                       typeFilter = Model.TypeFilter
                                    })">
                                     @i
                                 </a>
@@ -360,9 +311,7 @@
                                href="@Url.Action("Index", "Pokemon", new { 
                                    page = Model.CurrentPage + 1, 
                                    nameFilter = Model.NameFilter, 
-                                   typeFilter = Model.TypeFilter,
-                                   minHeight = Model.MinHeight,
-                                   maxHeight = Model.MaxHeight
+                                   typeFilter = Model.TypeFilter
                                })">
                                 <i class="fas fa-chevron-right"></i>
                             </a>
@@ -375,9 +324,7 @@
                                 <a class="page-link" href="@Url.Action("Index", "Pokemon", new { 
                                     page = Model.TotalPages, 
                                     nameFilter = Model.NameFilter, 
-                                    typeFilter = Model.TypeFilter,
-                                    minHeight = Model.MinHeight,
-                                    maxHeight = Model.MaxHeight
+                                    typeFilter = Model.TypeFilter
                                 })">
                                     <i class="fas fa-angle-double-right"></i>
                                 </a>
@@ -2100,4 +2047,26 @@
             addCacheBadgesToCards();
         }, 500);
     }
+    // NUEVO: Convertir metros a decímetros para filtros
+    function convertHeightFilters() {
+        const minHeightInput = document.getElementById('minHeight');
+        const maxHeightInput = document.getElementById('maxHeight');
+
+        if (minHeightInput && minHeightInput.value) {
+            const metersToDeciMeters = parseFloat(minHeightInput.value) * 10;
+            minHeightInput.setAttribute('data-original', minHeightInput.value);
+            minHeightInput.value = Math.round(metersToDeciMeters);
+        }
+
+        if (maxHeightInput && maxHeightInput.value) {
+            const metersToDeciMeters = parseFloat(maxHeightInput.value) * 10;
+            maxHeightInput.setAttribute('data-original', maxHeightInput.value);
+            maxHeightInput.value = Math.round(metersToDeciMeters);
+        }
+    }
+
+    // Llamar antes de enviar el formulario
+    document.getElementById('filterForm').addEventListener('submit', function(e) {
+        convertHeightFilters();
+    });
 </script>

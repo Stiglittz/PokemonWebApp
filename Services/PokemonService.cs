@@ -404,18 +404,14 @@ namespace PokemonWebApp.Services
             int pageNumber = 1,
             int pageSize = 20,
             string? nameFilter = null,
-            string? typeFilter = null,
-            int? minHeight = null,
-            int? maxHeight = null)
+            string? typeFilter = null)
         {
             var viewModel = new PokemonIndexViewModel
             {
                 CurrentPage = pageNumber,
                 PageSize = pageSize,
                 NameFilter = nameFilter,
-                TypeFilter = typeFilter,
-                MinHeight = minHeight,
-                MaxHeight = maxHeight
+                TypeFilter = typeFilter
             };
 
             try
@@ -426,19 +422,19 @@ namespace PokemonWebApp.Services
                 // Calcular offset para paginación
                 var offset = (pageNumber - 1) * pageSize;
 
+                if (!string.IsNullOrEmpty(typeFilter))
+                {
+                    _logger.LogInformation("🌐 Usando búsqueda global por tipo: {TypeFilter}", typeFilter);
+                    return await GetPokemonByTypeGlobalAsync(typeFilter, pageNumber, pageSize, nameFilter);
+                }
+
                 // Si hay filtro por nombre específico, buscar ese Pokémon
                 if (!string.IsNullOrEmpty(nameFilter))
                 {
                     var filteredPokemon = await GetPokemonByNameAsync(nameFilter);
                     if (filteredPokemon != null)
                     {
-                        // Aplicar filtros adicionales si el Pokémon los cumple
-                        if (MatchesFilters(filteredPokemon, typeFilter, minHeight, maxHeight))
-                        {
-                            viewModel.Pokemons = new List<Models.Pokemon.Pokemon> { filteredPokemon };
-                            viewModel.TotalCount = 1;
-                        }
-                        else
+
                         {
                             viewModel.TotalCount = 0;
                         }
@@ -468,7 +464,7 @@ namespace PokemonWebApp.Services
                     var allPokemons = pokemonDetails.Where(p => p != null).Cast<Models.Pokemon.Pokemon>().ToList();
 
                     // Aplicar filtros avanzados
-                    var filteredPokemons = ApplyAdvancedFilters(allPokemons, typeFilter, minHeight, maxHeight);
+                    var filteredPokemons = ApplyAdvancedFilters(allPokemons, typeFilter);
 
                     viewModel.Pokemons = filteredPokemons;
                     viewModel.TotalCount = pokemonList.Count; // Nota: Este es el total sin filtros
@@ -498,6 +494,119 @@ namespace PokemonWebApp.Services
         }
 
         /// <summary>
+        /// NUEVO: Obtiene todos los Pokémon de un tipo específico con paginación
+        /// </summary>
+        public async Task<PokemonIndexViewModel> GetPokemonByTypeGlobalAsync(
+            string typeName,
+            int pageNumber = 1,
+            int pageSize = 20,
+            string? nameFilter = null,
+            int? minHeight = null,
+            int? maxHeight = null)
+        {
+            var viewModel = new PokemonIndexViewModel
+            {
+                CurrentPage = pageNumber,
+                PageSize = pageSize,
+                NameFilter = nameFilter,
+                TypeFilter = typeName,
+                MinHeight = minHeight,
+                MaxHeight = maxHeight
+            };
+
+            try
+            {
+                _logger.LogInformation("🔍 Búsqueda global por tipo: {TypeName}", typeName);
+
+                var typeResponse = await _httpClient.GetStringAsync($"type/{typeName.ToLower()}");
+                var typeData = JsonConvert.DeserializeObject<PokemonTypeResponse>(typeResponse);
+
+                if (typeData?.Pokemon != null)
+                {
+                    var allPokemonTasks = typeData.Pokemon.Take(200).Select(async p => // Limitar a 200 para rendimiento
+                    {
+                        try
+                        {
+                            var pokemonId = ExtractIdFromUrl(p.Pokemon.Url);
+                            return await GetPokemonByIdAsync(pokemonId);
+                        }
+                        catch { return null; }
+                    });
+
+                    var allPokemons = (await Task.WhenAll(allPokemonTasks))
+                        .Where(p => p != null)
+                        .Cast<Models.Pokemon.Pokemon>()
+                        .ToList();
+
+                    // Aplicar filtros
+                    var filteredPokemons = allPokemons;
+
+                    if (!string.IsNullOrEmpty(nameFilter))
+                    {
+                        filteredPokemons = filteredPokemons
+                            .Where(p => p.Name.Contains(nameFilter, StringComparison.OrdinalIgnoreCase))
+                            .ToList();
+                    }
+
+                    filteredPokemons = ApplyHeightFilters(filteredPokemons, minHeight, maxHeight);
+
+                    // Paginación
+                    var totalCount = filteredPokemons.Count;
+                    var skipCount = (pageNumber - 1) * pageSize;
+                    var pagedPokemons = filteredPokemons.Skip(skipCount).Take(pageSize).ToList();
+
+                    viewModel.Pokemons = pagedPokemons;
+                    viewModel.TotalCount = totalCount;
+                    viewModel.HasNext = skipCount + pageSize < totalCount;
+                    viewModel.HasPrevious = pageNumber > 1;
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "❌ Error en búsqueda global por tipo {TypeName}", typeName);
+                viewModel.ErrorMessage = $"Error al buscar Pokémon de tipo {typeName}";
+            }
+
+            return viewModel;
+        }
+
+        /// <summary>
+        /// NUEVO: Extrae ID de la URL de la API
+        /// </summary>
+        private int ExtractIdFromUrl(string url)
+        {
+            var segments = url.TrimEnd('/').Split('/');
+            return int.Parse(segments.Last());
+        }
+
+        /// <summary>
+        /// NUEVO: Aplica filtros de altura corregidos
+        /// </summary>
+        private List<Models.Pokemon.Pokemon> ApplyHeightFilters(
+            List<Models.Pokemon.Pokemon> pokemons,
+            int? minHeight,
+            int? maxHeight)
+        {
+            return pokemons.Where(p => MatchesHeightFilters(p, minHeight, maxHeight)).ToList();
+        }
+
+        /// <summary>
+        /// NUEVO: Verifica filtros de altura en decímetros
+        /// </summary>
+        private bool MatchesHeightFilters(Models.Pokemon.Pokemon pokemon, int? minHeight, int? maxHeight)
+        {
+            var pokemonHeightInDm = pokemon.Height; // Ya está en decímetros
+
+            if (minHeight.HasValue && pokemonHeightInDm < minHeight.Value)
+                return false;
+
+            if (maxHeight.HasValue && pokemonHeightInDm > maxHeight.Value)
+                return false;
+
+            return true;
+        }
+
+        /// <summary>
         /// MÉTODO LEGACY: Mantener compatibilidad con código existente
         /// </summary>
         public async Task<PokemonIndexViewModel> GetPokemonsAsync(
@@ -509,7 +618,7 @@ namespace PokemonWebApp.Services
             int? maxHeight = null)
         {
             // Redirigir al método nuevo
-            return await GetPokemonListAsync(page, pageSize, nameFilter, typeFilter, minHeight, maxHeight);
+            return await GetPokemonListAsync(page, pageSize, nameFilter, typeFilter);
         }
 
         /// <summary>
@@ -726,35 +835,20 @@ namespace PokemonWebApp.Services
         /// </summary>
         private List<Models.Pokemon.Pokemon> ApplyAdvancedFilters(
             List<Models.Pokemon.Pokemon> pokemons,
-            string? typeFilter,
-            int? minHeight,
-            int? maxHeight)
+            string? typeFilter)
         {
-            return pokemons.Where(p => MatchesFilters(p, typeFilter, minHeight, maxHeight)).ToList();
+            return pokemons.Where(p => MatchesTypeFilter(p, typeFilter)).ToList();
         }
 
         /// <summary>
         /// Verifica si un Pokémon cumple con los filtros especificados
         /// </summary>
-        private bool MatchesFilters(Models.Pokemon.Pokemon pokemon, string? typeFilter, int? minHeight, int? maxHeight)
+        private bool MatchesTypeFilter(Models.Pokemon.Pokemon pokemon, string? typeFilter)
         {
-            // Filtro por tipo
-            if (!string.IsNullOrEmpty(typeFilter))
-            {
-                var hasType = pokemon.Types.Any(t =>
-                    t.Type.Name.Equals(typeFilter, StringComparison.OrdinalIgnoreCase));
-                if (!hasType) return false;
-            }
+            if (string.IsNullOrEmpty(typeFilter)) return true;
 
-            // Filtro por altura mínima
-            if (minHeight.HasValue && pokemon.Height < minHeight.Value)
-                return false;
-
-            // Filtro por altura máxima
-            if (maxHeight.HasValue && pokemon.Height > maxHeight.Value)
-                return false;
-
-            return true;
+            return pokemon.Types.Any(t =>
+                t.Type.Name.Equals(typeFilter, StringComparison.OrdinalIgnoreCase));
         }
 
         /// <summary>

@@ -22,9 +22,7 @@ namespace PokemonWebApp.Services
             int pageNumber = 1, 
             int pageSize = 20, 
             string? nameFilter = null, 
-            string? typeFilter = null, 
-            int? minHeight = null, 
-            int? maxHeight = null);
+            string? typeFilter = null);
 
         /// <summary>
         /// Obtiene la lista de todos los tipos de Pokémon disponibles

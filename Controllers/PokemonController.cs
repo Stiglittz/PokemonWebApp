@@ -42,9 +42,7 @@ namespace PokemonWebApp.Controllers
         public async Task<IActionResult> Index(
             int page = 1,
             string? nameFilter = null,
-            string? typeFilter = null,
-            int? minHeight = null,
-            int? maxHeight = null)
+            string? typeFilter = null)
         {
             var stopwatch = System.Diagnostics.Stopwatch.StartNew();
 
@@ -54,16 +52,10 @@ namespace PokemonWebApp.Controllers
 
                 // Validar parámetros
                 if (page < 1) page = 1;
-                if (minHeight < 0) minHeight = null;
-                if (maxHeight < 0) maxHeight = null;
-                if (minHeight > maxHeight && maxHeight.HasValue)
-                {
-                    (minHeight, maxHeight) = (maxHeight, minHeight); // Intercambiar si están al revés
-                }
 
                 // Obtener datos del servicio
                 var viewModel = await _pokemonService.GetPokemonListAsync(
-                    page, 20, nameFilter, typeFilter, minHeight, maxHeight);
+                    page, 20, nameFilter, typeFilter);
 
                 // Obtener tipos para el dropdown
                 if (!viewModel.TypeOptions.Any())
@@ -99,9 +91,7 @@ namespace PokemonWebApp.Controllers
                     TypeOptions = await _pokemonService.GetPokemonTypesAsync(),
                     CurrentPage = page,
                     NameFilter = nameFilter,
-                    TypeFilter = typeFilter,
-                    MinHeight = minHeight,
-                    MaxHeight = maxHeight
+                    TypeFilter = typeFilter
                 };
 
                 return View(errorViewModel);
@@ -326,9 +316,7 @@ namespace PokemonWebApp.Controllers
                     request.Page,
                     20, // pageSize
                     request.Name,
-                    request.TypeName,
-                    request.MinHeight,
-                    request.MaxHeight
+                    request.TypeName
                 );
 
                 if (!result.Pokemons.Any())
@@ -579,6 +567,4 @@ public class ExportPageRequest
     public int Page { get; set; }
     public string? Name { get; set; }
     public string? TypeName { get; set; }
-    public int? MinHeight { get; set; }
-    public int? MaxHeight { get; set; }
 }
